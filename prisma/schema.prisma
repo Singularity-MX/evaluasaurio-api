@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          BigInt @id @default(autoincrement())
+  name        String @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  users       User[]
+  permissions RolePermission[]
+  @@map("roles")
+}
+
+model Permission {
+  id            BigInt @id @default(autoincrement())
+  permissionKey String @unique @map("permission_key")
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  roles         RolePermission[]
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       BigInt @map("role_id")
+  permissionId BigInt @map("permission_id")
+  role         Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id               BigInt @id @default(autoincrement())
+  email            String @unique
+  passwordHash     String @map("password_hash")
+  roleId           BigInt @map("role_id")
+  active           Boolean @default(true)
+  refreshTokenHash String? @map("refresh_token_hash")
+  lastLoginAt      DateTime? @map("last_login_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  role             Role @relation(fields: [roleId], references: [id])
+  statusHistory    InfrastructureReportStatusHistory[]
+  moderationReviews ModerationReport[]
+  moderationActions ModerationAction[]
+  auditLogs        AuditLog[]
+  teacherRequests  TeacherRequest[]
+  subjectRequests  SubjectRequest[]
+  @@map("users")
+}
+
+model Department {
+  id                    BigInt @id @default(autoincrement())
+  name                  String @unique
+  description           String?
+  active                Boolean @default(true)
+  createdAt             DateTime @default(now()) @map("created_at")
+  teachers              Teacher[]
+  subjects              Subject[]
+  evaluations           DepartmentEvaluation[]
+  @@map("departments")
+}
+
+model Teacher {
+  id            BigInt @id @default(autoincrement())
+  firstName     String @map("first_name")
+  lastName      String @map("last_name")
+  gender        String?
+  departmentId  BigInt? @map("department_id")
+  active        Boolean @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  teacherSubjects TeacherSubject[]
+  evaluations   TeacherEvaluation[]
+  @@map("teachers")
+}
+
+model Subject {
+  id            BigInt @id @default(autoincrement())
+  name          String
+  code          String?
+  semester      Int?
+  departmentId  BigInt? @map("department_id")
+  active        Boolean @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  teacherSubjects TeacherSubject[]
+  evaluations   TeacherEvaluation[]
+  @@map("subjects")
+}
+
+model EvaluationPeriod {
+  id            BigInt @id @default(autoincrement())
+  name          String
+  periodType    String @map("period_type")
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  active        Boolean @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+  startTeacherSubjects TeacherSubject[] @relation("StartPeriod")
+  endTeacherSubjects TeacherSubject[] @relation("EndPeriod")
+  evaluations   TeacherEvaluation[]
+  @@map("evaluation_periods")
+}
+
+model TeacherSubject {
+  id            BigInt @id @default(autoincrement())
+  teacherId     BigInt @map("teacher_id")
+  subjectId     BigInt @map("subject_id")
+  startPeriodId BigInt? @map("start_period_id")
+  endPeriodId   BigInt? @map("end_period_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  teacher       Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject       Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  startPeriod   EvaluationPeriod? @relation("StartPeriod", fields: [startPeriodId], references: [id], onDelete: SetNull)
+  endPeriod     EvaluationPeriod? @relation("EndPeriod", fields: [endPeriodId], references: [id], onDelete: SetNull)
+  @@map("teacher_subjects")
+}
+
+model EvaluationDimension {
+  id          BigInt @id @default(autoincrement())
+  name        String @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  questions   EvaluationQuestion[]
+  @@map("evaluation_dimensions")
+}
+
+model EvaluationQuestion {
+  id             BigInt @id @default(autoincrement())
+  evaluationType String @map("evaluation_type")
+  dimensionId    BigInt? @map("dimension_id")
+  questionText   String @map("question_text")
+  questionOrder  Int @map("question_order")
+  questionType   String @map("question_type")
+  active         Boolean @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  dimension      EvaluationDimension? @relation(fields: [dimensionId], references: [id], onDelete: SetNull)
+  answers        TeacherEvaluationAnswer[]
+  @@map("evaluation_questions")
+}
+
+model TeacherEvaluation {
+  id                 BigInt @id @default(autoincrement())
+  teacherId          BigInt @map("teacher_id")
+  subjectId          BigInt @map("subject_id")
+  evaluationPeriodId BigInt? @map("evaluation_period_id")
+  evaluationType     String @map("evaluation_type")
+  fingerprintHash    String? @map("fingerprint_hash")
+  recommended        Boolean?
+  comment            String?
+  confidenceLevel    String? @map("confidence_level")
+  createdAt          DateTime @default(now()) @map("created_at")
+  teacher            Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject            Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  evaluationPeriod   EvaluationPeriod? @relation(fields: [evaluationPeriodId], references: [id], onDelete: SetNull)
+  answers            TeacherEvaluationAnswer[]
+  @@map("teacher_evaluations")
+}
+
+model TeacherEvaluationAnswer {
+  id            BigInt @id @default(autoincrement())
+  evaluationId  BigInt @map("evaluation_id")
+  questionId    BigInt @map("question_id")
+  score         Int?
+  answerText    String? @map("answer_text")
+  answerBoolean Boolean? @map("answer_boolean")
+  createdAt     DateTime @default(now()) @map("created_at")
+  evaluation    TeacherEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  question      EvaluationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  @@map("teacher_evaluation_answers")
+}
+
+model DepartmentQuestion {
+  id            BigInt @id @default(autoincrement())
+  questionText  String @map("question_text")
+  questionOrder Int @map("question_order")
+  questionType  String @map("question_type")
+  active        Boolean @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  answers       DepartmentEvaluationAnswer[]
+  @@map("department_questions")
+}
+
+model DepartmentEvaluation {
+  id              BigInt @id @default(autoincrement())
+  departmentId    BigInt @map("department_id")
+  fingerprintHash String? @map("fingerprint_hash")
+  comment         String?
+  confidenceLevel String? @map("confidence_level")
+  createdAt       DateTime @default(now()) @map("created_at")
+  department      Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  answers         DepartmentEvaluationAnswer[]
+  @@map("department_evaluations")
+}
+
+model DepartmentEvaluationAnswer {
+  id           BigInt @id @default(autoincrement())
+  evaluationId BigInt @map("evaluation_id")
+  questionId   BigInt @map("question_id")
+  score        Int?
+  answerText   String? @map("answer_text")
+  createdAt    DateTime @default(now()) @map("created_at")
+  evaluation   DepartmentEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  question     DepartmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  @@map("department_evaluation_answers")
+}
+
+model InfrastructureCategory {
+  id        BigInt @id @default(autoincrement())
+  name      String @unique
+  icon      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  reports   InfrastructureReport[]
+  @@map("infrastructure_categories")
+}
+
+model InfrastructureReport {
+  id            BigInt @id @default(autoincrement())
+  categoryId    BigInt @map("category_id")
+  location      String
+  description   String
+  severity      Int
+  imageUrl      String? @map("image_url")
+  currentStatus String @default("OPEN") @map("current_status")
+  fingerprintHash String? @map("fingerprint_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  resolvedAt    DateTime? @map("resolved_at")
+  category      InfrastructureCategory @relation(fields: [categoryId], references: [id])
+  history       InfrastructureReportStatusHistory[]
+  @@map("infrastructure_reports")
+}
+
+model InfrastructureReportStatusHistory {
+  id          BigInt @id @default(autoincrement())
+  reportId    BigInt @map("report_id")
+  oldStatus   String? @map("old_status")
+  newStatus   String @map("new_status")
+  changedBy   BigInt? @map("changed_by")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  report       InfrastructureReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user         User? @relation(fields: [changedBy], references: [id], onDelete: SetNull)
+  @@map("infrastructure_report_status_history")
+}
+
+model ModerationReport {
+  id          BigInt @id @default(autoincrement())
+  targetType  String @map("target_type")
+  targetId    BigInt @map("target_id")
+  reason      String
+  description String?
+  status      String @default("PENDING")
+  reviewedBy  BigInt? @map("reviewed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  reviewer    User? @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
+  actions     ModerationAction[]
+  @@map("moderation_reports")
+}
+
+model ModerationAction {
+  id                 BigInt @id @default(autoincrement())
+  moderationReportId BigInt @map("moderation_report_id")
+  moderatorId        BigInt @map("moderator_id")
+  action             String
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  report             ModerationReport @relation(fields: [moderationReportId], references: [id], onDelete: Cascade)
+  moderator          User @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+  @@map("moderation_actions")
+}
+
+model PageView {
+  id              BigInt @id @default(autoincrement())
+  path            String
+  fingerprintHash String? @map("fingerprint_hash")
+  durationSeconds Int? @map("duration_seconds")
+  userAgent       String? @map("user_agent")
+  referer         String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  @@map("page_views")
+}
+
+model SearchEvent {
+  id              BigInt @id @default(autoincrement())
+  queryText       String? @map("query_text")
+  resultsCount    Int? @map("results_count")
+  fingerprintHash String? @map("fingerprint_hash")
+  createdAt       DateTime @default(now()) @map("created_at")
+  @@map("search_events")
+}
+
+model ParticipationMetricsDaily {
+  id                         BigInt @id @default(autoincrement())
+  metricDate                 DateTime @unique @map("metric_date")
+  totalTeacherEvaluations    Int @default(0) @map("total_teacher_evaluations")
+  totalDepartmentEvaluations Int @default(0) @map("total_department_evaluations")
+  totalInfrastructureReports Int @default(0) @map("total_infrastructure_reports")
+  activeUsers                Int @default(0) @map("active_users")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  @@map("participation_metrics_daily")
+}
+
+model AuditLog {
+  id           BigInt @id @default(autoincrement())
+  userId       BigInt? @map("user_id")
+  action       String
+  entityType   String? @map("entity_type")
+  entityId     BigInt? @map("entity_id")
+  metadataJson Json? @map("metadata_json")
+  ipAddress    String? @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@map("audit_logs")
+}
+
+model TeacherRequest {
+  id             BigInt @id @default(autoincrement())
+  firstName      String @map("first_name")
+  lastName       String @map("last_name")
+  gender         String?
+  departmentName String? @map("department_name")
+  email          String?
+  status         String @default("PENDING")
+  reviewedBy     BigInt? @map("reviewed_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  reviewedAt     DateTime? @map("reviewed_at")
+  reviewer       User? @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
+  @@map("teacher_requests")
+}
+
+model SubjectRequest {
+  id          BigInt @id @default(autoincrement())
+  name        String
+  description String?
+  status      String @default("PENDING")
+  reviewedBy  BigInt? @map("reviewed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  reviewedAt  DateTime? @map("reviewed_at")
+  reviewer    User? @relation(fields: [reviewedBy], references: [id], onDelete: SetNull)
+  @@map("subject_requests")
+}
