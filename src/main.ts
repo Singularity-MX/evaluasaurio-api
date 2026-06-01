@@ -1,25 +1,19 @@
-import {
-  ValidationPipe,
-} from '@nestjs/common';
-
-import {
-  NestFactory,
-} from '@nestjs/core';
-
-import {
-  SwaggerModule,
-  DocumentBuilder,
-} from '@nestjs/swagger';
-
-import { AppModule } from './app.module';
+import { ValidationPipe } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  const prefix = "api/v2";
+  // =========================
+  // GLOBAL PREFIX
+  // =========================
+  app.setGlobalPrefix(prefix);
 
-  const app =
-    await NestFactory.create(
-      AppModule,
-    );
-
+  // =========================
+  // VALIDATION PIPE GLOBAL
+  // =========================
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -28,52 +22,38 @@ async function bootstrap() {
     }),
   );
 
-  const config =
-    new DocumentBuilder()
-      .setTitle(
-        'Evaluasaurio API',
-      )
-      .setDescription(
-        'Documentación API Evaluasaurio',
-      )
-      .setVersion(
-        '1.0.0',
-      )
-      .addBearerAuth()
-      .build();
+  // =========================
+  // CORS CONFIG
+  // =========================
+  app.enableCors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  });
 
-  const document =
-    SwaggerModule.createDocument(
-      app,
-      config,
-    );
+  // =========================
+  // SWAGGER CONFIG
+  // =========================
+  const config = new DocumentBuilder()
+    .setTitle("Evaluasaurio API")
+    .setDescription("Documentación API Evaluasaurio")
+    .setVersion("2.0.0")
+    .addBearerAuth()
+    .build();
 
-  SwaggerModule.setup(
-    'docs',
-    app,
-    document,
-  );
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup(prefix + "/docs", app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 
-app.enableCors({
-  origin: [
-    'http://localhost:5173',
-  ],
-  credentials: true,
-});
-
-  await app.listen(
-    process.env.PORT
-      ? Number(process.env.PORT)
-      : 3000,
-  );
-
-  console.log(
-    `🚀 API ejecutándose en: ${await app.getUrl()}`,
-  );
-
-  console.log(
-    `📚 Swagger disponible en: ${await app.getUrl()}/docs`,
-  );
+  // =========================
+  // START SERVER
+  // =========================
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  await app.listen(port);
+  console.log(`🚀 API ejecutándose en: ${await app.getUrl()}/${prefix}`);
+  console.log(`📚 Swagger disponible en: ${await app.getUrl()}/${prefix}/docs`);
 }
 
 bootstrap();
