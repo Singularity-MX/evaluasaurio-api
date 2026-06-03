@@ -5,6 +5,7 @@ import { AppService } from "./app.service";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
+import { AdministrationModule } from './modules/administration/administration.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AuditLogsModule } from "./modules/audit-logs/audit-logs.module";
         limit: 5,
       },
     ]),
+    AdministrationModule,
   ],
 
   controllers: [
