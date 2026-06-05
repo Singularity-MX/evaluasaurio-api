@@ -6,8 +6,8 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
-
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -15,22 +15,31 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-
 import { DepartmentsService } from './departments.service';
-
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 
 @ApiTags('Administration - Departments')
-@ApiBearerAuth()
 @Controller('admin/departments')
 export class DepartmentsController {
-
   constructor(
     private readonly departmentsService: DepartmentsService,
   ) {}
 
+  // =====================================
+  // CREATE
+  // =====================================
+
   @Post()
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles('ADMIN')
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Crear departamento',
   })
@@ -38,27 +47,48 @@ export class DepartmentsController {
     status: 201,
     description: 'Departamento creado correctamente',
   })
+  @ApiResponse({
+    status: 401,
+    description: 'No autenticado',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Sin permisos',
+  })
   create(
     @Body() dto: CreateDepartmentDto,
   ) {
-    return this.departmentsService.create(dto);
+    return this.departmentsService.create(
+      dto,
+    );
   }
+
+  // =====================================
+  // GET ALL (PUBLICO)
+  // =====================================
 
   @Get()
   @ApiOperation({
-    summary: 'Obtener todos los departamentos',
+    summary:
+      'Obtener todos los departamentos',
   })
   @ApiResponse({
     status: 200,
-    description: 'Listado de departamentos',
+    description:
+      'Listado de departamentos',
   })
   findAll() {
     return this.departmentsService.findAll();
   }
 
+  // =====================================
+  // GET ONE (PUBLICO)
+  // =====================================
+
   @Get(':id')
   @ApiOperation({
-    summary: 'Obtener departamento por ID',
+    summary:
+      'Obtener departamento por ID',
   })
   @ApiParam({
     name: 'id',
@@ -72,13 +102,32 @@ export class DepartmentsController {
     );
   }
 
+  // =====================================
+  // UPDATE
+  // =====================================
+
   @Patch(':id')
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles('ADMIN')
+  @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Actualizar departamento',
+    summary:
+      'Actualizar departamento',
   })
   @ApiParam({
     name: 'id',
     example: 1,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'No autenticado',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Sin permisos',
   })
   update(
     @Param('id') id: string,
@@ -90,13 +139,32 @@ export class DepartmentsController {
     );
   }
 
+  // =====================================
+  // DELETE (SOFT DELETE)
+  // =====================================
+
   @Delete(':id')
+  @UseGuards(
+    JwtAuthGuard,
+    RolesGuard,
+  )
+  @Roles('ADMIN')
+  @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Desactivar departamento',
+    summary:
+      'Desactivar departamento',
   })
   @ApiParam({
     name: 'id',
     example: 1,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'No autenticado',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Sin permisos',
   })
   remove(
     @Param('id') id: string,

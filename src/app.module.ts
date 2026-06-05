@@ -13,13 +13,14 @@ import { AdministrationModule } from './modules/administration/administration.mo
     AuthModule,
     AuditLogsModule,
     AuthModule,
+    AdministrationModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
         limit: 5,
       },
     ]),
-    AdministrationModule,
+    
   ],
 
   controllers: [

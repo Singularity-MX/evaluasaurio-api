@@ -1,16 +1,14 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-
-import { PrismaService } from '../../../prisma/prisma.service';
-
-import { CreateDepartmentDto } from './dto/create-department.dto';
-import { UpdateDepartmentDto } from './dto/update-department.dto';
+} from "@nestjs/common";
+import { PrismaService } from "../../../prisma/prisma.service";
+import { CreateDepartmentDto } from "./dto/create-department.dto";
+import { UpdateDepartmentDto } from "./dto/update-department.dto";
 
 @Injectable()
 export class DepartmentsService {
-
   constructor(
     private readonly prisma: PrismaService,
   ) {}
@@ -18,6 +16,18 @@ export class DepartmentsService {
   async create(
     dto: CreateDepartmentDto,
   ) {
+    const exists = await this.prisma.department.findUnique({
+      where: {
+        name: dto.name,
+      },
+    });
+
+    if (exists) {
+      throw new ConflictException(
+        "Ya existe un departamento con ese nombre",
+      );
+    }
+
     return this.prisma.department.create({
       data: {
         name: dto.name,
@@ -29,25 +39,23 @@ export class DepartmentsService {
   async findAll() {
     return this.prisma.department.findMany({
       orderBy: {
-        name: 'asc',
+        name: "asc",
       },
     });
   }
 
   async findOne(id: bigint) {
-    const department =
-      await this.prisma.department.findUnique({
-        where: {
-          id,
-        },
-      });
+    const department = await this.prisma.department.findUnique({
+      where: {
+        id,
+      },
+    });
 
     if (!department) {
       throw new NotFoundException(
-        'Departamento no encontrado',
+        "Departamento no encontrado",
       );
     }
-
     return department;
   }
 
@@ -56,6 +64,23 @@ export class DepartmentsService {
     dto: UpdateDepartmentDto,
   ) {
     await this.findOne(id);
+
+    if (dto.name) {
+      const exists = await this.prisma.department.findFirst({
+        where: {
+          name: dto.name,
+          NOT: {
+            id,
+          },
+        },
+      });
+
+      if (exists) {
+        throw new ConflictException(
+          "Ya existe un departamento con ese nombre",
+        );
+      }
+    }
 
     return this.prisma.department.update({
       where: {

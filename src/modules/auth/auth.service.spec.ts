@@ -229,4 +229,36 @@ describe("AuthService", () => {
       }),
     );
   });
+  it('should fail refresh if token invalid', async () => {
+  mockJwtService.verifyAsync.mockRejectedValue(new Error('bad'));
+
+  await expect(service.refresh('bad-token')).rejects.toThrow(
+    'Refresh token inválido',
+  );
+});
+
+it('should fail refresh if user not found', async () => {
+  mockJwtService.verifyAsync.mockResolvedValue({ sub: '1' });
+  mockPrisma.user.findUnique.mockResolvedValue(null);
+
+  await expect(service.refresh('token')).rejects.toThrow(
+    'Refresh token inválido',
+  );
+});
+
+it('should fail refresh if bcrypt mismatch', async () => {
+  mockJwtService.verifyAsync.mockResolvedValue({ sub: '1' });
+
+  mockPrisma.user.findUnique.mockResolvedValue({
+    id: 1n,
+    refreshTokenHash: 'hash',
+    role: { name: 'ADMIN' },
+  });
+
+  mockedBcrypt.compare.mockResolvedValue(false as never);
+
+  await expect(service.refresh('token')).rejects.toThrow(
+    'Refresh token inválido',
+  );
+});
 });
